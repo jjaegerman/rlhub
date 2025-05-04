@@ -1,0 +1,15 @@
+[project]
+name = "rlhub"
+version = "1.11.0"
+description = "RL Hub Python Framework"
+authors = [{ name = "Jonathan Jaegerman", email = "jonathan.jaegerman@gmail.com" }]
+requires-python = "~=3.12"
+readme = "README.md"
+keywords = [
+    "rlhub",
+    "reinforcement learning hub",
+]
+
+[project.urls]
+Homepage = "https://github.com/jjaegerman/rlhub"
+Repository = "https://github.com/jjaegerman/rlhub"
