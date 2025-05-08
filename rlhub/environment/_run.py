@@ -2,17 +2,18 @@ from datetime import timedelta
 
 from temporalio import workflow
 
+from rlhub.agent._base import BaseRunner as BaseAgentRunner
 from rlhub.common.model import Event
-from rlhub.environment._base import Base
+from rlhub.environment._base import BaseRunner
 
 
-class RemoteActivityRunner(Base):
+class RemoteActivityRunner(BaseRunner):
     """
     Environment runner sub class that runs environment activities from anywhere.
     """
 
     def __init__(
-        self, task_queue: str = "environment", agent_task_queue: str = "agent"
+        self, task_queue: str = "environment", agent_task_queue: str = "agent-runner"
     ):
         """
         Initialize the environment runner with a task queue.
@@ -27,7 +28,7 @@ class RemoteActivityRunner(Base):
         """
         return self._agent_task_queue
 
-    async def run_impl(self, input_data: Base.RunParams) -> str:
+    async def run_impl(self, input_data: BaseRunner.RunParams) -> str:
         """
         Run the environment with an agent in Temporal Cloud.
         """
@@ -51,8 +52,8 @@ class RemoteActivityRunner(Base):
         while not event.done:
             # plan action with agent
             action = await workflow.execute_activity(
-                self.plan,
-                Base.PlanParams(state=state, prev_event=event),
+                BaseAgentRunner.plan,
+                state,
                 task_queue=self.agent_task_queue,
                 start_to_close_timeout=timedelta(seconds=10),
             )
@@ -60,7 +61,7 @@ class RemoteActivityRunner(Base):
             # execute action in environment
             result = await workflow.execute_activity(
                 self.act,
-                Base.ActParams(action=action, state=state),
+                BaseRunner.ActParams(action=action, state=state),
                 task_queue=self.task_queue,
                 start_to_close_timeout=timedelta(seconds=10),
             )
@@ -70,7 +71,7 @@ class RemoteActivityRunner(Base):
             event.action = action
 
         # next episode
-        workflow.continue_as_new(Base.RunParams())
+        workflow.continue_as_new(BaseRunner.RunParams())
 
 
 # Should also have LocalEnvironmentRunner that runs environment with local activities

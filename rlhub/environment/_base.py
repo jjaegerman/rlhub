@@ -1,21 +1,21 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from temporalio import activity, workflow
 
-from rlhub.common.model import Action, Done, Event, Reward, State
+from rlhub.common.model import Action, Done, Reward, State
 
 
 @workflow.defn(name="RunEnvironment")
-class Base(ABC):
+class BaseRunner(ABC):
     """
     Interface for a workflow that runs an environment.
     This encapsulates environment interfacing and execution
     strategy.
     """
 
-    def __init__(self, task_queue: str = "environment"):
+    def __init__(self, task_queue: str = "environment-runner") -> None:
         """
         Initialize the environment runner with a task queue.
         """
@@ -37,14 +37,14 @@ class Base(ABC):
         initial_state: Optional[dict] = None
 
     @workflow.run
-    async def run(self, input_data: RunParams) -> str:
+    async def run(self, input_data: RunParams) -> Any:
         """
         Run the environment with the given arguments.
         """
         return self.run_impl(input_data)
 
     @abstractmethod
-    async def run_impl(self, input_data: RunParams) -> str:
+    async def run_impl(self, input_data: RunParams) -> Any:
         """
         Run the environment with the given arguments.
         """
@@ -98,30 +98,5 @@ class Base(ABC):
         """
         Perform an action in the environment and
         observe resulting state and reward.
-        """
-        pass
-
-    @dataclass
-    class PlanParams:
-        """
-        Parameters for the plan method.
-        """
-
-        state: State
-        prev_event: Optional[Event] = None
-
-    @activity.defn(name="Plan")
-    async def plan(self, state: State) -> Action:
-        """
-        Determine the next action to take in the environment.
-        And optionally pass the previous event for learning.
-        """
-        return self.plan_impl(state)
-
-    @abstractmethod
-    async def plan_impl(self, state: State) -> Action:
-        """
-        Determine the next state to take in the environment.
-        And optionally pass the previous event for learning.
         """
         pass
