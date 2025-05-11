@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 from temporalio import workflow
@@ -13,13 +14,14 @@ class RemoteActivityRunner(BaseRunner):
     """
 
     def __init__(
-        self, task_queue: str = "environment", agent_task_queue: str = "agent-runner"
+        self, task_queue: str = "environment", agent_task_queue: str = "agent"
     ):
         """
         Initialize the environment runner with a task queue.
         """
         super().__init__(task_queue)
         self._agent_task_queue = agent_task_queue
+        self._env_id = str(uuid.uuid4())
 
     @property
     def agent_task_queue(self) -> str:
@@ -42,6 +44,12 @@ class RemoteActivityRunner(BaseRunner):
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
+        # get agent handle (this assumed it tracks new runs)
+        agent_handle = workflow.get_external_workflow_handle_for(
+            workflow=BaseAgentRunner,
+            workflow_id="agent" + self._env_id,
+        )
+
         # run for an episode
         event = Event(
             state=state,
@@ -52,7 +60,7 @@ class RemoteActivityRunner(BaseRunner):
         while not event.done:
             # plan action with agent
             action = await workflow.execute_activity(
-                BaseAgentRunner.plan,
+                BaseAgentRunner.execute_policy,
                 state,
                 task_queue=self.agent_task_queue,
                 start_to_close_timeout=timedelta(seconds=10),
@@ -69,6 +77,12 @@ class RemoteActivityRunner(BaseRunner):
             event.reward = result.reward
             event.done = result.done
             event.action = action
+
+            # upload event to agent
+            await agent_handle.signal(
+                BaseAgentRunner.record_event,
+                event,
+            )
 
         # next episode
         workflow.continue_as_new(BaseRunner.RunParams())

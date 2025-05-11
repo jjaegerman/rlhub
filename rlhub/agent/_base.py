@@ -7,13 +7,13 @@ from rlhub.common.model import Action, Event, State
 
 
 @workflow.defn(name="ManageAgent")
-class BaseManager(ABC):
+class BaseRunner(ABC):
     """
     Interface for a workflow that manages an agent endpoint.
     This encapsulates data collection and policy maintenance.
     """
 
-    def __init__(self, task_queue: str = "agent-supervisor") -> None:
+    def __init__(self, task_queue: str = "agent") -> None:
         """
         Initialize the agent runner with a task queue.
         """
@@ -74,51 +74,32 @@ class BaseManager(ABC):
         """
         pass
 
-
-@workflow.defn(name="Plan")
-class BaseRunner(ABC):
-    """
-    Interface for a workflow that serves an agent endpoint.
-    This encapsulates planning and policy computation.
-    """
-
-    def __init__(self, task_queue: str = "agent-runner"):
-        """
-        Initialize the agent runner with a task queue.
-        """
-        self._task_queue = task_queue
-
-    @property
-    def task_queue(self) -> str:
-        """
-        The task queue to use for the agent.
-        """
-        return self._task_queue
-
-    @workflow.run
-    async def run(self, state: State) -> Action:
+    # TODO: implement update approach ocne supported for better observability
+    @activity.defn(name="ExecutePolicy")
+    async def execute_policy(self, state: State) -> Action:
         """
         Determine the next action to take in the environment.
         """
-        return self.run_impl(state)
+        return self.execute_policy_impl(state)
 
     @abstractmethod
-    async def run_impl(self, state: State) -> Action:
+    async def execute_policy_impl(self, state: State) -> Action:
         """
-        Determine the next action to take in the environment.
+        Determine the next state to take in the environment.
         """
         pass
 
-    @activity.defn(name="Plan")
-    async def plan(self, state: State) -> Action:
+    # TODO: This will need to include output probability of action taken too
+    @workflow.signal(name="RecordEvent")
+    async def record_event(self, event: Event) -> None:
         """
-        Determine the next action to take in the environment.
+        Record an event in the agent manager.
         """
-        return self.plan_impl(state)
+        await self.record_event_impl(event)
 
     @abstractmethod
-    async def plan_impl(self, state: State) -> Action:
+    async def record_event_impl(self, event: Event) -> None:
         """
-        Determine the next state to take in the environment.
+        Record an event in the agent manager.
         """
         pass

@@ -15,7 +15,7 @@ class BaseRunner(ABC):
     strategy.
     """
 
-    def __init__(self, task_queue: str = "environment-runner") -> None:
+    def __init__(self, task_queue: str = "environment") -> None:
         """
         Initialize the environment runner with a task queue.
         """
