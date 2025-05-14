@@ -2,31 +2,20 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from temporalio import activity, workflow
-
 from rlhub.common.model import Action, Done, Reward, State
 
 
-@workflow.defn(name="RunEnvironment")
 class BaseRunner(ABC):
     """
-    Interface for a workflow that runs an environment.
+    Interface for a class that runs an environment.
     This encapsulates environment interfacing and execution
     strategy.
     """
 
-    def __init__(self, task_queue: str = "environment") -> None:
+    def __init__(self) -> None:
         """
-        Initialize the environment runner with a task queue.
+        Initialize the environment runner
         """
-        self._task_queue = task_queue
-
-    @property
-    def task_queue(self) -> str:
-        """
-        The task queue to use for the environment.
-        """
-        return self._task_queue
 
     @dataclass
     class RunParams:
@@ -36,7 +25,6 @@ class BaseRunner(ABC):
 
         initial_state: Optional[dict] = None
 
-    @workflow.run
     async def run(self, input_data: RunParams) -> Any:
         """
         Run the environment with the given arguments.
@@ -50,7 +38,6 @@ class BaseRunner(ABC):
         """
         pass
 
-    @activity.defn(name="Init")
     async def init(self) -> State:
         """
         Initialize a new environment instance and
@@ -85,7 +72,6 @@ class BaseRunner(ABC):
         reward: Reward
         done: Done
 
-    @activity.defn(name="Act")
     async def act(self, action: ActParams) -> ActResult:
         """
         Perform an action in the environment and

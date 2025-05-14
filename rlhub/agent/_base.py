@@ -74,7 +74,6 @@ class BaseRunner(ABC):
         """
         pass
 
-    # TODO: implement update approach ocne supported for better observability
     @activity.defn(name="ExecutePolicy")
     async def execute_policy(self, state: State) -> Action:
         """
@@ -86,6 +85,20 @@ class BaseRunner(ABC):
     async def execute_policy_impl(self, state: State) -> Action:
         """
         Determine the next state to take in the environment.
+        """
+        pass
+
+    @workflow.update(name="ServePolicy")
+    async def serve_policy(self, state: State) -> Action:
+        """
+        Serve the policy to the agent manager.
+        """
+        return self.serve_policy_impl(state)
+
+    @abstractmethod
+    async def serve_policy_impl(self, state: State) -> Action:
+        """
+        Serve the policy to the agent manager.
         """
         pass
 

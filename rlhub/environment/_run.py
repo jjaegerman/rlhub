@@ -1,25 +1,24 @@
 import uuid
 from datetime import timedelta
 
-from temporalio import workflow
+from temporalio import client, workflow
 
 from rlhub.agent._base import BaseRunner as BaseAgentRunner
 from rlhub.common.model import Event
 from rlhub.environment._base import BaseRunner
 
 
-class RemoteActivityRunner(BaseRunner):
+class RemoteRunner(BaseRunner):
     """
     Environment runner sub class that runs environment activities from anywhere.
     """
 
-    def __init__(
-        self, task_queue: str = "environment", agent_task_queue: str = "agent"
-    ):
+    def __init__(self, client: client.Client, agent_task_queue: str = "agent"):
         """
         Initialize the environment runner with a task queue.
         """
-        super().__init__(task_queue)
+        super().__init__()
+        self._client = client
         self._agent_task_queue = agent_task_queue
         self._env_id = str(uuid.uuid4())
 
@@ -44,12 +43,6 @@ class RemoteActivityRunner(BaseRunner):
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
-        # get agent handle (this assumed it tracks new runs)
-        agent_handle = workflow.get_external_workflow_handle_for(
-            workflow=BaseAgentRunner,
-            workflow_id="agent" + self._env_id,
-        )
-
         # run for an episode
         event = Event(
             state=state,
@@ -59,11 +52,15 @@ class RemoteActivityRunner(BaseRunner):
         )
         while not event.done:
             # plan action with agent
-            action = await workflow.execute_activity(
-                BaseAgentRunner.execute_policy,
+            action = await self._client.execute_update_with_start_workflow(
+                BaseAgentRunner.serve_policy,
                 state,
-                task_queue=self.agent_task_queue,
-                start_to_close_timeout=timedelta(seconds=10),
+                start_workflow_operation=client.WithStartWorkflowOperation(
+                    BaseAgentRunner.run,
+                    id=self.agent_task_queue + self._env_id,
+                    task_queue=self.agent_task_queue,
+                ),
+                id=self.agent_task_queue + self._env_id,
             )
 
             # execute action in environment
@@ -79,13 +76,13 @@ class RemoteActivityRunner(BaseRunner):
             event.action = action
 
             # upload event to agent
-            await agent_handle.signal(
-                BaseAgentRunner.record_event,
-                event,
+            await self._client.start_workflow(
+                BaseAgentRunner.run,
+                id=self.agent_task_queue + self._env_id,
+                task_queue=self.agent_task_queue,
+                start_signal=BaseAgentRunner.upload_history,
+                signal_args=[event],
             )
-
-        # next episode
-        workflow.continue_as_new(BaseRunner.RunParams())
 
 
 # Should also have LocalEnvironmentRunner that runs environment with local activities
