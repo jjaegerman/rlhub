@@ -29,7 +29,7 @@ class BaseRunner(ABC):
         """
         Run the environment with the given arguments.
         """
-        return self.run_impl(input_data)
+        return await self.run_impl(input_data)
 
     @abstractmethod
     async def run_impl(self, input_data: RunParams) -> Any:
@@ -43,7 +43,7 @@ class BaseRunner(ABC):
         Initialize a new environment instance and
         return the initial state.
         """
-        return self.init_impl()
+        return await self.init_impl()
 
     @abstractmethod
     async def init_impl(self) -> State:
@@ -77,7 +77,7 @@ class BaseRunner(ABC):
         Perform an action in the environment and
         observe resulting state and reward.
         """
-        return self.act_impl(action)
+        return await self.act_impl(action)
 
     @abstractmethod
     async def act_impl(self, action: ActParams) -> ActResult:

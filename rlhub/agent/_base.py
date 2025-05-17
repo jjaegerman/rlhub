@@ -6,18 +6,18 @@ from temporalio import activity, workflow
 from rlhub.common.model import Action, Event, State
 
 
-@workflow.defn(name="ManageAgent")
+@workflow.defn(name="RunAgent")
 class BaseRunner(ABC):
     """
     Interface for a workflow that manages an agent endpoint.
     This encapsulates data collection and policy maintenance.
     """
 
-    def __init__(self, task_queue: str = "agent") -> None:
+    def __init__(self) -> None:
         """
         Initialize the agent runner with a task queue.
         """
-        self._task_queue = task_queue
+        self._task_queue = "agent"
 
     @property
     def task_queue(self) -> str:
@@ -31,7 +31,7 @@ class BaseRunner(ABC):
         """
         Run the agent manager with the given arguments.
         """
-        return self.run_impl(input_data)
+        return await self.run_impl(input_data)
 
     @abstractmethod
     async def run_impl(self, input_data: Any) -> Any:
@@ -45,7 +45,7 @@ class BaseRunner(ABC):
         self,
         history: Sequence[Event],
     ) -> Any:
-        return self.upload_history_impl(history)
+        return await self.upload_history_impl(history)
 
     @abstractmethod
     async def upload_history_impl(
@@ -79,7 +79,7 @@ class BaseRunner(ABC):
         """
         Determine the next action to take in the environment.
         """
-        return self.execute_policy_impl(state)
+        return await self.execute_policy_impl(state)
 
     @abstractmethod
     async def execute_policy_impl(self, state: State) -> Action:
@@ -93,7 +93,7 @@ class BaseRunner(ABC):
         """
         Serve the policy to the agent manager.
         """
-        return self.serve_policy_impl(state)
+        return await self.serve_policy_impl(state)
 
     @abstractmethod
     async def serve_policy_impl(self, state: State) -> Action:
