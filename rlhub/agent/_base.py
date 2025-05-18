@@ -7,17 +7,26 @@ from rlhub.common.model import Action, Event, State
 
 
 @workflow.defn(name="RunAgent")
-class BaseRunner(ABC):
+class BaseAgent(ABC):
     """
     Interface for a workflow that manages an agent endpoint.
     This encapsulates data collection and policy maintenance.
     """
 
-    def __init__(self) -> None:
+    @workflow.init
+    def __init__(self, input_data: Any) -> None:
         """
         Initialize the agent runner with a task queue.
         """
         self._task_queue = "agent"
+        self.init_impl(input_data)
+
+    @abstractmethod
+    def init_impl(self, input_data: Any) -> None:
+        """
+        Initialize the agent runner.
+        """
+        pass
 
     @property
     def task_queue(self) -> str:
@@ -57,20 +66,14 @@ class BaseRunner(ABC):
         """
         pass
 
-    @activity.defn(name="SwapPolicy")
-    async def swap_policy(
-        self,
-        new_policy: Any,
-    ) -> Any:
-        return self.swap_policy_impl(new_policy)
+    @activity.defn(name="PollPolicy")
+    async def poll_policy(self) -> str:
+        return self.poll_policy_impl()
 
     @abstractmethod
-    async def swap_policy_impl(
-        self,
-        new_policy: Any,
-    ) -> Any:
+    async def poll_policy_impl(self) -> str:
         """
-        Swap the policy in the agent manager.
+        Poll the agent manager for a new policy version.
         """
         pass
 
