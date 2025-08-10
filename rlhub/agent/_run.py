@@ -34,9 +34,9 @@ class Policy(ABC):
         pass
 
     @abstractmethod
-    async def update(self, version: str) -> None:
+    async def update(self) -> None:
         """
-        Update the policy with the specified version.
+        Update the policy with the latest version.
         Set self.version to the new version use locking
         if there is awaiting.
         """

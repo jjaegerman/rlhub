@@ -1,7 +1,6 @@
 import uuid
-from datetime import timedelta
 
-from temporalio import client, workflow
+from temporalio import client
 
 from rlhub.agent._base import BaseRunner as BaseAgentRunner
 from rlhub.common.model import Event
@@ -37,11 +36,7 @@ class RemoteRunner(BaseRunner):
         # get initial state
         state = input_data.initial_state
         if state is None:
-            state = await workflow.execute_activity(
-                self.init,
-                task_queue=self.task_queue,
-                start_to_close_timeout=timedelta(seconds=10),
-            )
+            state = self.init()
 
         # run for an episode
         event = Event(
@@ -64,12 +59,7 @@ class RemoteRunner(BaseRunner):
             )
 
             # execute action in environment
-            result = await workflow.execute_activity(
-                self.act,
-                BaseRunner.ActParams(action=action, state=state),
-                task_queue=self.task_queue,
-                start_to_close_timeout=timedelta(seconds=10),
-            )
+            result = self.act(BaseRunner.ActParams(action=action, state=state))
             state = result.state
             event.reward = result.reward
             event.done = result.done
