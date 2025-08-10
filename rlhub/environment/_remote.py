@@ -2,14 +2,14 @@ import uuid
 
 from temporalio import client
 
-from rlhub.agent._base import BaseRunner as BaseAgentRunner
+from rlhub.agent._remote import RemoteBaseAgent
 from rlhub.common.model import Event
 from rlhub.environment._base import BaseRunner
 
 
 class RemoteRunner(BaseRunner):
     """
-    Environment runner sub class that runs environment activities from anywhere.
+    Environment runner that uses a remote agent.
     """
 
     def __init__(self, client: client.Client, agent_task_queue: str = "agent"):
@@ -49,14 +49,13 @@ class RemoteRunner(BaseRunner):
         while not event.done:
             # plan action with agent
             action = await self._client.execute_update_with_start_workflow(
-                BaseAgentRunner.serve_policy,
+                RemoteBaseAgent.serve_policy,
                 state,
                 start_workflow_operation=client.WithStartWorkflowOperation(
-                    BaseAgentRunner.run,
+                    RemoteBaseAgent.run,
                     id=self._agent_workflow_id,
                     task_queue=self.agent_task_queue,
                 ),
-                id=self.agent_task_queue + self._env_id,
             )
 
             # execute action in environment
@@ -68,7 +67,7 @@ class RemoteRunner(BaseRunner):
 
             # upload event to agent
             await self._client.get_workflow_handle(self._agent_workflow_id).signal(
-                BaseAgentRunner.record_event, event
+                RemoteBaseAgent.record_event, event
             )
 
 

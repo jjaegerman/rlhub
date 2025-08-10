@@ -12,11 +12,6 @@ class BaseRunner(ABC):
     strategy.
     """
 
-    def __init__(self) -> None:
-        """
-        Initialize the environment runner
-        """
-
     @dataclass
     class RunParams:
         """
@@ -25,31 +20,18 @@ class BaseRunner(ABC):
 
         initial_state: Optional[dict] = None
 
-    async def run(self, input_data: RunParams) -> Any:
-        """
-        Run the environment with the given arguments.
-        """
-        return await self.run_impl(input_data)
-
     @abstractmethod
-    async def run_impl(self, input_data: RunParams) -> Any:
+    async def run(self, input_data: RunParams) -> Any:
         """
         Run the environment with the given arguments.
         """
         pass
 
+    @abstractmethod
     async def init(self) -> State:
         """
         Initialize a new environment instance and
-        return the initial state.
-        """
-        return await self.init_impl()
-
-    @abstractmethod
-    async def init_impl(self) -> State:
-        """
-        Initialize a new environment instance and
-        return the initial state.
+        returns a copy of the initial state.
         """
         pass
 
@@ -73,14 +55,6 @@ class BaseRunner(ABC):
         done: Done
 
     async def act(self, action: ActParams) -> ActResult:
-        """
-        Perform an action in the environment and
-        observe resulting state and reward.
-        """
-        return await self.act_impl(action)
-
-    @abstractmethod
-    async def act_impl(self, action: ActParams) -> ActResult:
         """
         Perform an action in the environment and
         observe resulting state and reward.
