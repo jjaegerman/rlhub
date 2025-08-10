@@ -19,6 +19,7 @@ class RemoteRunner(BaseRunner):
         super().__init__()
         self._client = client
         self._agent_task_queue = agent_task_queue
+        self._agent_workflow_id = "agent"
         self._env_id = str(uuid.uuid4())
 
     @property
@@ -52,7 +53,7 @@ class RemoteRunner(BaseRunner):
                 state,
                 start_workflow_operation=client.WithStartWorkflowOperation(
                     BaseAgentRunner.run,
-                    id=self.agent_task_queue + self._env_id,
+                    id=self._agent_workflow_id,
                     task_queue=self.agent_task_queue,
                 ),
                 id=self.agent_task_queue + self._env_id,
@@ -66,21 +67,9 @@ class RemoteRunner(BaseRunner):
             event.action = action
 
             # upload event to agent
-            await self._client.start_workflow(
-                BaseAgentRunner.run,
-                id=self.agent_task_queue + self._env_id,
-                task_queue=self.agent_task_queue,
-                start_signal=BaseAgentRunner.upload_history,
-                signal_args=[event],
+            await self._client.get_workflow_handle(self._agent_workflow_id).signal(
+                BaseAgentRunner.record_event, event
             )
 
 
-# Should also have LocalEnvironmentRunner that runs environment with local activities
-# to guarantee that the environment is run in the same process (would be easier for 1to1 or resource management)
-
-# Also a LocalLocalEnvironmentRunner that runs the environment with local activities
-# and uses local activities for the agent
-# maybe it takes an agent as an input
-# and calls its implementation
-
-# Also some that use nexus for later on?
+# Should also have LocalEnvironmentRunner that runs environment with function invocation
