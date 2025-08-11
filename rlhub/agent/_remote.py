@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any
+from typing import Any, Dict
 
 from temporalio import workflow
 
@@ -14,14 +14,14 @@ class RemoteBasePolicy(BasePolicy):
     """
 
     @workflow.run
-    async def run(self):
+    async def run(self, input_data: Dict[str, Any]) -> Any:
         """
         Initialization and management logic
         """
         return await self.run_impl()
 
     @abstractmethod
-    async def run_impl(self):
+    async def run_impl(self, input_data: Dict[str, Any]) -> Any:
         pass
 
 
@@ -32,37 +32,15 @@ class RemoteBaseAgent(BaseAgent):
     This encapsulates data staging and policy serving.
     """
 
-    @workflow.init
-    def __init__(self, input_data: Any) -> None:
-        """
-        Initialize the agent runner with a task queue.
-        """
-        self._task_queue = "agent"
-        self.init_impl(input_data)
-
-    @abstractmethod
-    def init_impl(self, input_data: Any) -> None:
-        """
-        Initialize the agent runner.
-        """
-        pass
-
-    @property
-    def task_queue(self) -> str:
-        """
-        The task queue to use for the agent.
-        """
-        return self._task_queue
-
     @workflow.run
-    async def run(self, input_data: Any) -> Any:
+    async def run(self, input_data: Dict[str, Any]) -> Any:
         """
         Run the agent manager with the given arguments.
         """
         return await self.run_impl(input_data)
 
     @abstractmethod
-    async def run_impl(self, input_data: Any) -> Any:
+    async def run_impl(self, input_data: Dict[str, Any]) -> Any:
         """
         Run the agent manager with the given arguments.
         """

@@ -31,8 +31,9 @@ class BasePolicy(ABC):
     This encapsulates policy management and access.
     """
 
+    @staticmethod
     @abstractmethod
-    def execute(self, state: State) -> Action:
+    async def execute(state: State) -> Action:
         """
         Execute the policy on the given state.
         """
