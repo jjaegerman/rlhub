@@ -68,7 +68,7 @@ class RemoteRunner(BaseRunner):
 
             # upload event to agent
             event_key = str(uuid.uuid4())
-            RemoteAgent.eventStage[event_key] = event
+            RemoteAgent.event_stage[event_key] = event
             await self._client.get_workflow_handle(self._agent_workflow_id).signal(
                 RemoteBaseAgent.record_event, event_key
             )

@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, Dict, List
 
 from rlhub.common.model import Event
 from rlhub.workflow.factory._base import BaseFactory, BaseFactoryActivities
@@ -7,7 +7,7 @@ from rlhub.workflow.factory._base import BaseFactory, BaseFactoryActivities
 class SimpleFactoryActivities(BaseFactoryActivities):
     async def sample_batch_impl(
         self,
-        batch: List[Event],
+        key: str,
     ) -> List[Event]:
         """
         Sample from the batch of data.
@@ -35,13 +35,15 @@ class SimpleFactoryActivities(BaseFactoryActivities):
 
 
 class SimpleFactory(BaseFactory):
+    batch_stage = Dict[str, List[Event]] = dict()
+
     async def run_impl(self, input_data: Any) -> Any:
         """
         Run the factory manager with the given arguments.
         """
         pass
 
-    async def upload_batch_impl(self, batch: List[Event]) -> None:
+    async def upload_batch_impl(self, key: str) -> None:
         """
         Receive a batch of data from agent.
         """

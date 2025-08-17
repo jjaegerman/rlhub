@@ -93,14 +93,14 @@ class BaseFactory(ABC):
         pass
 
     @workflow.signal(name="UploadBatch")
-    async def upload_batch(self, batch: List[Event]) -> None:
+    async def upload_batch(self, key: str) -> None:
         """
         Receive a batch of data from agent.
         """
-        await self.upload_batch_impl(batch)
+        await self.upload_batch_impl(str)
 
     @abstractmethod
-    async def upload_batch_impl(self, batch: List[Event]) -> None:
+    async def upload_batch_impl(self, key: str) -> None:
         """
         Receive a batch of data from agent.
         """

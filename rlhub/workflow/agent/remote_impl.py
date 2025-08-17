@@ -6,7 +6,7 @@ from typing import Any, Dict
 import torch
 from temporalio import activity, workflow
 
-from rlhub.common.model import Action, State
+from rlhub.common.model import Action, Event, State
 from rlhub.workflow.agent._remote import RemoteBaseAgent, RemoteBasePolicy
 from rlhub.workflow.factory._base import BaseFactory
 
@@ -89,7 +89,7 @@ async def execute_remote_policy(state: State) -> Action:
 # doesn't do any sticky sessions for GAE or episode-batch normalization of A or other preprocessing techniques
 # again lots of ways to structure better but will defer those refactors for now
 class RemoteAgent(RemoteBaseAgent):
-    eventStage = dict()
+    event_stage: Dict[str, Event] = dict()
 
     @workflow.init
     def __init__(self, input_data: Dict[str, Any]) -> None:
