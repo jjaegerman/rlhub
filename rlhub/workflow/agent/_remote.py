@@ -3,8 +3,8 @@ from typing import Any, Dict
 
 from temporalio import workflow
 
-from rlhub.agent._base import BaseAgent, BasePolicy
 from rlhub.common.model import Action, Event, State
+from rlhub.workflow.agent._base import BaseAgent, BasePolicy
 
 
 @workflow.defn(name="ManagePolicy")
@@ -65,6 +65,8 @@ class RemoteBaseAgent(BaseAgent):
     async def record_event(self, event: Event) -> None:
         """
         Record an event in the agent manager.
+        Submit batch to factory when ready.
+        Perform any early preprocessing that is necessary (e.g. GAE).
         """
         await self.record_event_impl(event)
 

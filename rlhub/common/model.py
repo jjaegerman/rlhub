@@ -1,9 +1,10 @@
 from dataclasses import dataclass
+from typing import Any
 
-type Action = dict
+type Action = Any
 type Reward = float
 type Done = bool
-type State = dict
+type State = Any
 
 
 @dataclass

@@ -2,9 +2,9 @@ import uuid
 
 from temporalio import client
 
-from rlhub.agent._remote import RemoteBaseAgent
 from rlhub.common.model import Event
-from rlhub.environment._base import BaseRunner
+from rlhub.workflow.agent._remote import RemoteBaseAgent
+from rlhub.workflow.environment._base import BaseRunner
 
 
 class RemoteRunner(BaseRunner):

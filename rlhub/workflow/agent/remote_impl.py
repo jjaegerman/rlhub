@@ -6,9 +6,9 @@ from typing import Any, Dict
 import torch
 from temporalio import activity, workflow
 
-from rlhub.agent._remote import RemoteBaseAgent, RemoteBasePolicy
 from rlhub.common.model import Action, Event, State
-from rlhub.factory._base import BaseFactory
+from rlhub.workflow.agent._remote import RemoteBaseAgent, RemoteBasePolicy
+from rlhub.workflow.factory._base import BaseFactory
 
 
 # can reorganize later but this is a pytorch policy (torchscript) with
@@ -75,10 +75,17 @@ class RemotePolicy(RemoteBasePolicy):
         if not RemotePolicy._policy:
             await RemotePolicy._policy_ready.wait()
 
-        return Action(RemotePolicy._policy(state["torch"]))
+        return Action(RemotePolicy._policy(state))
+
+
+@activity.defn(name="ExecutePolicy")
+async def execute_remote_policy(state: State) -> Action:
+    return await RemotePolicy.execute(state)
 
 
 # ditto this is a simple agent, no request batching, simple history batching
+# retrieves samples from local storage
+# doesn't do any sticky sessions for GAE or episode-batch normalization of A or other preprocessing techniques
 class RemoteAgent(RemoteBaseAgent):
     @workflow.init
     def __init__(self, input_data: Dict[str, Any]) -> None:
@@ -105,13 +112,9 @@ class RemoteAgent(RemoteBaseAgent):
             task_queue=self.task_queue,
         )
 
-    @activity.defn(name="ExecutePolicy")
-    async def execute_policy(self, state: State) -> Action:
-        return await RemotePolicy.execute(state)
-
     async def serve_policy_impl(self, state: State) -> Action:
         return await workflow.execute_activity(
-            self.execute_policy,
+            execute_remote_policy,
             state,
             task_queue=self.task_queue,
             start_to_close_timeout=timedelta(seconds=self.execute_timeout),
