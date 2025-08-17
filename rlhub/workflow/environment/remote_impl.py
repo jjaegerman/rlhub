@@ -4,6 +4,7 @@ from temporalio import client
 
 from rlhub.common.model import Event
 from rlhub.workflow.agent._remote import RemoteBaseAgent
+from rlhub.workflow.agent.remote_impl import RemoteAgent
 from rlhub.workflow.environment._base import BaseRunner
 
 
@@ -66,8 +67,10 @@ class RemoteRunner(BaseRunner):
             event.action = action
 
             # upload event to agent
+            event_key = str(uuid.uuid4())
+            RemoteAgent.eventStage[event_key] = event
             await self._client.get_workflow_handle(self._agent_workflow_id).signal(
-                RemoteBaseAgent.record_event, event
+                RemoteBaseAgent.record_event, event_key
             )
 
 

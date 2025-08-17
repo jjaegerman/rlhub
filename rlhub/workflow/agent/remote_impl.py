@@ -6,13 +6,13 @@ from typing import Any, Dict
 import torch
 from temporalio import activity, workflow
 
-from rlhub.common.model import Action, Event, State
+from rlhub.common.model import Action, State
 from rlhub.workflow.agent._remote import RemoteBaseAgent, RemoteBasePolicy
 from rlhub.workflow.factory._base import BaseFactory
 
 
 # can reorganize later but this is a pytorch policy (torchscript) with
-# a dedicated update workflow polled from local storage
+# a dedicated update workflow polls from local storage
 # assumes model .pt torchscript files are stored in dir with a filename
 # that increases lexicographically with version
 # the workflow should run on a machine-specific task queue
@@ -84,9 +84,13 @@ async def execute_remote_policy(state: State) -> Action:
 
 
 # ditto this is a simple agent, no request batching, simple history batching
-# retrieves samples from local storage
+# retrieves samples from local memory using a shared dictionary and a key
+# (to not have full data in workflow history)
 # doesn't do any sticky sessions for GAE or episode-batch normalization of A or other preprocessing techniques
+# again lots of ways to structure better but will defer those refactors for now
 class RemoteAgent(RemoteBaseAgent):
+    eventStage = dict()
+
     @workflow.init
     def __init__(self, input_data: Dict[str, Any]) -> None:
         self._task_queue = "agent"
@@ -120,7 +124,8 @@ class RemoteAgent(RemoteBaseAgent):
             start_to_close_timeout=timedelta(seconds=self.execute_timeout),
         )
 
-    async def record_event_impl(self, event: Event) -> None:
+    async def record_event_impl(self, key: str) -> None:
+        event = RemoteAgent.eventStage[key]
         self.history_buffer.append(event)
 
         if len(self.history_buffer) >= self.history_batch_size:
@@ -130,3 +135,5 @@ class RemoteAgent(RemoteBaseAgent):
             await workflow.get_external_workflow_handle(self.factory_id).signal(
                 BaseFactory.upload_batch, slice
             )
+
+        del RemoteAgent.eventStage[key]

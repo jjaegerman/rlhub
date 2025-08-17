@@ -3,7 +3,7 @@ from typing import Any, Dict
 
 from temporalio import workflow
 
-from rlhub.common.model import Action, Event, State
+from rlhub.common.model import Action, State
 from rlhub.workflow.agent._base import BaseAgent, BasePolicy
 
 
@@ -62,16 +62,16 @@ class RemoteBaseAgent(BaseAgent):
 
     # TODO: This will need to include output probability of action taken too
     @workflow.signal(name="RecordEvent")
-    async def record_event(self, event: Event) -> None:
+    async def record_event(self, key: str) -> None:
         """
         Record an event in the agent manager.
         Submit batch to factory when ready.
         Perform any early preprocessing that is necessary (e.g. GAE).
         """
-        await self.record_event_impl(event)
+        await self.record_event_impl(key)
 
     @abstractmethod
-    async def record_event_impl(self, event: Event) -> None:
+    async def record_event_impl(self, key: str) -> None:
         """
         Record an event in the agent manager.
         """
