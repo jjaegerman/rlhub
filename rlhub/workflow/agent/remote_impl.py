@@ -1,14 +1,14 @@
 import asyncio
+import uuid
 from datetime import timedelta
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-import torch
 from temporalio import activity, workflow
 
 from rlhub.common.model import Action, Event, State
 from rlhub.workflow.agent._remote import RemoteBaseAgent, RemoteBasePolicy
 from rlhub.workflow.factory._base import BaseFactory
+from rlhub.workflow.factory.simple_impl import SimpleFactory
 
 
 # can reorganize later but this is a pytorch policy (torchscript) with
@@ -16,25 +16,21 @@ from rlhub.workflow.factory._base import BaseFactory
 # assumes model .pt torchscript files are stored in dir with a filename
 # that increases lexicographically with version
 # the workflow should run on a machine-specific task queue
+# one per machine
 class RemotePolicy(RemoteBasePolicy):
     workflow_id = "policy_poller"
     _policy = None
     _policy_ready = asyncio.Event()
     _version = None
-    _lock = asyncio.Lock()
 
     @activity.defn(name="DoPoll")
     def do_poll(self, poll_dir) -> None:
-        search_directory = Path(poll_dir)
-        file_pattern = "*.pt"
-
-        files = search_directory.glob(file_pattern)
-        latest = max(files, lambda path: path.stem)
+        latest = SimpleFactory.policy.version
 
         # asyncio does not preempt - no need to synchronize
-        if RemotePolicy._version is None:
+        if RemotePolicy._version is None or latest > RemotePolicy._version:
             RemotePolicy._version = latest
-            RemotePolicy._policy = torch.jit.load(self._poll_path)
+            RemotePolicy._policy = SimpleFactory.policy.asset
             RemotePolicy._policy_ready.set()
 
     @property
@@ -42,16 +38,11 @@ class RemotePolicy(RemoteBasePolicy):
         return self._task_queue
 
     @property
-    def poll_dir(self) -> str:
-        return self._poll_dir
-
-    @property
     def poll_interval(self) -> timedelta:
         return self.poll_interval
 
     @workflow.init
     def __init__(self, input_data: Dict[str, Any]) -> None:
-        self._poll_dir = input_data.get("poll_path")
         self._poll_interval = input_data.get("poll_interval")
         self._task_queue = input_data.get("task_queue")
 
@@ -60,7 +51,7 @@ class RemotePolicy(RemoteBasePolicy):
             await workflow.execute_activity(
                 RemotePolicy.do_poll, self.poll_dir, task_queue=self.task_queue
             )
-            workflow.sleep(self.poll_interval)
+            await workflow.sleep(self.poll_interval)
         return workflow.continue_as_new(
             input_data,
             task_queue=self.task_queue,
@@ -88,8 +79,10 @@ async def execute_remote_policy(state: State) -> Action:
 # (to not have full data in workflow history)
 # doesn't do any sticky sessions for GAE or episode-batch normalization of A or other preprocessing techniques
 # again lots of ways to structure better but will defer those refactors for now
+# one per machine (unless we move buffer into workflow and stage to shared resource)
 class RemoteAgent(RemoteBaseAgent):
     event_stage: Dict[str, Event] = dict()
+    history_buffer: List[Event] = list()
 
     @workflow.init
     def __init__(self, input_data: Dict[str, Any]) -> None:
@@ -100,10 +93,6 @@ class RemoteAgent(RemoteBaseAgent):
         self.execute_timeout = input_data.get("execute_timeout", 60)
         self.poll_policy_interval = input_data.get("poll_policy_interval", 60)
 
-        self.history_buffer = list()
-        self.history_buffer_lock = asyncio.Lock()
-        self.latest_policy_version = None
-
     @property
     def task_queue(self) -> str:
         return self._task_queue
@@ -113,7 +102,6 @@ class RemoteAgent(RemoteBaseAgent):
         await workflow.wait_condition(workflow.all_handlers_finished)
         return workflow.continue_as_new(
             input_data,
-            task_queue=self.task_queue,
         )
 
     async def serve_policy_impl(self, state: State) -> Action:
@@ -125,15 +113,20 @@ class RemoteAgent(RemoteBaseAgent):
         )
 
     async def record_event_impl(self, key: str) -> None:
-        event = RemoteAgent.eventStage[key]
-        self.history_buffer.append(event)
+        event = RemoteAgent.event_stage[key]
+        RemoteAgent.history_buffer.append(event)
 
-        if len(self.history_buffer) >= self.history_batch_size:
+        if len(RemoteAgent.history_buffer) >= self.history_batch_size:
             # asyncio does not preempt - no need to synchronize
-            slice = self.history_buffer[: self.history_batch_size]
-            self.history_buffer = self.history_buffer[self.history_batch_size :]
+            slice = RemoteAgent.history_buffer[: self.history_batch_size]
+            RemoteAgent.history_buffer = RemoteAgent.history_buffer[
+                self.history_batch_size :
+            ]
+
+            batch_key = str(uuid.uuid4())
+            SimpleFactory.batch_stage[batch_key] = slice
             await workflow.get_external_workflow_handle(self.factory_id).signal(
-                BaseFactory.upload_batch, slice
+                BaseFactory.upload_batch, batch_key
             )
 
-        del RemoteAgent.eventStage[key]
+        del RemoteAgent.event_stage[key]

@@ -1,27 +1,26 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from dataclasses import dataclass
+from typing import Any
 
 from temporalio import activity, workflow
-
-from rlhub.common.model import Event
 
 
 class BaseFactoryActivities(ABC):
     @activity.defn(name="SampleBatch")
     async def sample_batch(
         self,
-        batch: List[Event],
+        key: str,
     ) -> Any:
         """
         Sample from the batch of data.
         And evict from Replay Buffer.
         """
-        return await self.sample_batch_impl(batch)
+        return await self.sample_batch_impl(key)
 
     @abstractmethod
     async def sample_batch_impl(
         self,
-        batch: List[Event],
+        key: str,
     ) -> Any:
         """
         Sample from the batch of data.
@@ -32,17 +31,15 @@ class BaseFactoryActivities(ABC):
     @activity.defn(name="RedistributePolicy")
     async def redistribute_policy(
         self,
-        policy: Any,
     ) -> Any:
         """
         Redistribute the policy.
         """
-        return await self.redistribute_policy_impl(policy)
+        return await self.redistribute_policy_impl()
 
     @abstractmethod
     async def redistribute_policy_impl(
         self,
-        policy: Any,
     ) -> Any:
         """
         Redistribute the policy.
@@ -50,19 +47,15 @@ class BaseFactoryActivities(ABC):
         pass
 
     @activity.defn(name="TrainModel")
-    async def train_model(
-        self,
-        model: Any,
-    ) -> Any:
+    async def train_model(self) -> Any:
         """
         Train the model.
         """
-        return await self.train_model_impl(model)
+        return await self.train_model_impl()
 
     @abstractmethod
     async def train_model_impl(
         self,
-        model: Any,
     ) -> Any:
         """
         Train the model.
@@ -119,3 +112,13 @@ class BaseFactory(ABC):
         Trigger redistribution of the policy.
         """
         pass
+
+
+@dataclass
+class PolicyDistribution:
+    """
+    Stores a distribution of a policy
+    """
+
+    version: int
+    asset: Any
